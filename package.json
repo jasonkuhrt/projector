@@ -1,0 +1,56 @@
+{
+  "name": "@wollybeard/projector",
+  "description": "Projector is a JavaScript library for programmatically scaffolding and controlling projects.",
+  "devDependencies": {
+    "@tsconfig/node-lts": "^22.0.1",
+    "@tsconfig/node22": "^22.0.2",
+    "@tsconfig/recommended": "^1.0.8",
+    "@tsconfig/strictest": "^2.0.5",
+    "dprint": "^0.50.0",
+    "dripip": "^0.10.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.build.json",
+    "build:watch:emit": "pnpm build:watch --noCheck",
+    "build:watch": "tsc --build tsconfig.build.json --watch",
+    "build:emit": "pnpm build --noCheck",
+    "build:clean": "pnpm tsc --build tsconfig.build.json --clean && rm -rf build",
+    "check:types": "tsc --noEmit",
+    "prepack": "pnpm build",
+    "fix:format": "dprint fmt",
+    "check:format": "dprint check",
+    "test:unit": "vitest",
+    "test": "vitest",
+    "check": "pnpm run '/check:.*/'",
+    "fixcheck": "pnpm run '/fix:.*/' && pnpm run '/check:.*/'",
+    "fix": "pnpm run '/fix:.*/'"
+  },
+  "packageManager": "pnpm@10.10.0",
+  "version": "0.0.0-dripip",
+  "type": "module",
+  "files": [
+    "build",
+    "src"
+  ],
+  "exports": {
+    ".": "./build/exports/index.js"
+  },
+  "imports": {
+    "#dep/*": {
+      "default": "./build/dep/*",
+      "ts": "./src/dep/*"
+    },
+    "#lib/*": {
+      "default": "./build/lib/*",
+      "ts": "./src/lib/*"
+    }
+  },
+  "dependencies": {
+    "@types/node": "^22.15.21",
+    "@wollybeard/kit": "^0.22.0",
+    "zx": "^8.5.4"
+  }
+}
