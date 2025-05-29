@@ -1,6 +1,7 @@
 import { Debug, Fs, FsRelative, Language, Manifest, type PackageManager, Path, type Str } from '@wollybeard/kit'
 import type { SideEffect } from '@wollybeard/kit/language'
 import type { ProcessPromise, Shell } from 'zx'
+import { $ } from 'zx'
 import { Layout } from './lib/layout/index.js'
 
 type ScriptRunner = (...args: any[]) => Promise<any>
@@ -135,8 +136,6 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
   const fsr = FsRelative.create({ directory: await Fs.makeTemporaryDirectory() })
 
   debug(`created temporary directory`, { path: fsr.cwd })
-
-  const { $ } = await import(`zx`)
 
   // const ac = new AbortController()
 

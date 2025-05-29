@@ -50,8 +50,8 @@
     }
   },
   "dependencies": {
-    "@types/node": "^22.15.21",
-    "@wollybeard/kit": "^0.22.0",
+    "@types/node": "^22.15.24",
+    "@wollybeard/kit": "^0.28.0",
     "zx": "^8.5.4"
   }
 }
