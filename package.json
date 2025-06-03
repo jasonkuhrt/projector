@@ -30,7 +30,7 @@
     "release": "dripip stable",
     "prebuild": "pnpm build:clean"
   },
-  "packageManager": "pnpm@10.10.0",
+  "packageManager": "pnpm@10.11.1",
   "version": "0.0.0-dripip",
   "type": "module",
   "files": [
