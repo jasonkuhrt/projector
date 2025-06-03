@@ -10,7 +10,7 @@
     "dripip": "^0.10.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.4"
+    "vitest": "^3.2.0"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
@@ -50,8 +50,8 @@
     }
   },
   "dependencies": {
-    "@types/node": "^22.15.24",
-    "@wollybeard/kit": "^0.28.0",
+    "@types/node": "^22.15.29",
+    "@wollybeard/kit": "^0.30.0",
     "zx": "^8.5.4"
   }
 }
