@@ -18,7 +18,7 @@
     "build:watch": "tsc --build tsconfig.build.json --watch",
     "build:emit": "pnpm build --noCheck",
     "build:clean": "pnpm tsc --build tsconfig.build.json --clean && rm -rf build",
-    "check:types": "tsc --noEmit",
+    "check:types": "tsc",
     "prepack": "pnpm build",
     "fix:format": "dprint fmt",
     "check:format": "dprint check",
@@ -27,7 +27,8 @@
     "check": "pnpm run '/check:.*/'",
     "fixcheck": "pnpm run '/fix:.*/' && pnpm run '/check:.*/'",
     "fix": "pnpm run '/fix:.*/'",
-    "release": "dripip stable"
+    "release": "dripip stable",
+    "prebuild": "pnpm build:clean"
   },
   "packageManager": "pnpm@10.10.0",
   "version": "0.0.0-dripip",
@@ -47,6 +48,9 @@
     "#lib/*": {
       "default": "./build/lib/*",
       "ts": "./src/lib/*"
+    },
+    "#*": {
+      "default": "./build/*"
     }
   },
   "dependencies": {

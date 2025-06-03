@@ -16,6 +16,8 @@
     "tsconfig.libra.json": true,
     ".vscode": true,
     ".dprintrc.json": true,
-    "vitest.config.ts": true
+    "vitest.config.ts": true,
+    "node_modules": true,
+    ".dprint": true
   }
 }
