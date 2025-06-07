@@ -8,12 +8,14 @@
     "@tsconfig/strictest": "^2.0.5",
     "dprint": "^0.50.0",
     "dripip": "^0.10.0",
+    "simple-git-hooks": "^2.13.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^3.2.0"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
+    "dev": "pnpm build:watch:emit",
     "build:watch:emit": "pnpm build:watch --noCheck",
     "build:watch": "tsc --build tsconfig.build.json --watch",
     "build:emit": "pnpm build --noCheck",
@@ -28,7 +30,8 @@
     "fixcheck": "pnpm run '/fix:.*/' && pnpm run '/check:.*/'",
     "fix": "pnpm run '/fix:.*/'",
     "release": "dripip stable",
-    "prebuild": "pnpm build:clean"
+    "prebuild": "pnpm build:clean",
+    "prepare": "simple-git-hooks"
   },
   "packageManager": "pnpm@10.11.1",
   "version": "0.0.0-dripip",
@@ -52,6 +55,9 @@
     "#*": {
       "default": "./build/*"
     }
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm check"
   },
   "dependencies": {
     "@types/node": "^22.15.29",

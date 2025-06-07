@@ -66,6 +66,7 @@ interface TemplateScaffold {
 type Scaffold = TemplateScaffold | InitScaffold
 
 interface ConfigInput<$ScriptRunners extends ScriptRunners = ScriptRunners> {
+  directory?: string | undefined
   debug?: Debug.Debug | undefined
   package?: false | {
     /**
@@ -85,6 +86,7 @@ interface ConfigInput<$ScriptRunners extends ScriptRunners = ScriptRunners> {
 }
 
 interface Config {
+  directory: string
   debug: Debug.Debug
   scaffold: Scaffold
   package: {
@@ -93,7 +95,7 @@ interface Config {
   }
 }
 
-const resolveConfigInput = (configInput: ConfigInput<any>): Config => {
+const resolveConfigInput = async (configInput: ConfigInput<any>): Promise<Config> => {
   const debug = configInput.debug ?? Debug.debug
 
   const scaffold: Scaffold = typeof configInput.scaffold === `string`
@@ -113,7 +115,10 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Config => {
 
   const install = configInput.package ? (configInput.package.install ?? false) : false
 
+  const directory = configInput.directory ?? await Fs.makeTemporaryDirectory()
+
   return {
+    directory,
     debug,
     scaffold,
     package: {
@@ -127,31 +132,19 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Config => {
 export const create = async <scriptRunners extends ScriptRunners = {}>(
   parameters: ConfigInput<scriptRunners>,
 ): Promise<Projector<scriptRunners>> => {
-  const config = resolveConfigInput(parameters)
+  const config = await resolveConfigInput(parameters)
 
   const { debug } = config
 
-  // utilities
+  //
+  //
+  //
+  // ━━━━━━━━━━━━━━ • Files
+  //
+  //
 
-  const fsr = FsRelative.create({ directory: await Fs.makeTemporaryDirectory() })
-
+  const fsr = FsRelative.create({ directory: config.directory })
   debug(`created temporary directory`, { path: fsr.cwd })
-
-  // const ac = new AbortController()
-
-  const shell = $({ cwd: fsr.cwd })
-
-  const shellProcesses: ProcessPromise[] = []
-
-  const shellWrapped: Shell = (pieces: any, ...args: any[]) => {
-    const p = shell(pieces, ...args)
-    shellProcesses.push(p)
-    return p
-  }
-
-  shellWrapped.sync = shell.sync
-
-  const pnpmShell: Shell = shellWrapped({ prefix: `pnpm ` })
 
   const layout = Layout.create({ fsRelative: fsr })
 
@@ -183,8 +176,6 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
     }
   }
 
-  // files
-
   const packageJson = await Manifest.resource.read(fsr.cwd)
   if (config.package.enabled) {
     if (!packageJson) Language.never(`packageJson missing in ${fsr.cwd}`)
@@ -194,7 +185,35 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
     packageJson,
   }
 
-  // instance
+  //
+  //
+  //
+  // ━━━━━━━━━━━━━━ • Shell
+  //
+  //
+
+  // const ac = new AbortController()
+
+  const shell = $({ cwd: fsr.cwd })
+
+  const shellProcesses: ProcessPromise[] = []
+
+  const shellWrapped: Shell = (pieces: any, ...args: any[]) => {
+    const p = shell(pieces, ...args)
+    shellProcesses.push(p)
+    return p
+  }
+
+  shellWrapped.sync = shell.sync
+
+  const pnpmShell: Shell = shellWrapped({ prefix: `pnpm ` })
+
+  //
+  //
+  //
+  // ━━━━━━━━━━━━━━ • Instance
+  //
+  //
 
   const project: Projector<scriptRunners> = {
     shell: shellWrapped,
@@ -221,7 +240,12 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
 
   project.run = parameters.scripts?.(project) ?? {} as scriptRunners
 
-  // Initialize
+  //
+  //
+  //
+  // ━━━━━━━━━━━━━━ • Init
+  //
+  //
 
   // links
 
@@ -247,8 +271,6 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
       }
     }
   }
-
-  // init
 
   // install
 

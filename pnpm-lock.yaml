@@ -36,6 +36,9 @@ importers:
       dripip:
         specifier: ^0.10.0
         version: 0.10.0
+      simple-git-hooks:
+        specifier: ^2.13.0
+        version: 2.13.0
       tsx:
         specifier: ^4.19.4
         version: 4.19.4
@@ -1063,6 +1066,10 @@ packages:
 
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
+
+  simple-git-hooks@2.13.0:
+    resolution: {integrity: sha512-N+goiLxlkHJlyaYEglFypzVNMaNplPAk5syu0+OPp/Bk6dwVoXF6FfOw2vO0Dp+JHsBaI+w6cm8TnFl2Hw6tDA==}
+    hasBin: true
 
   simple-git@2.48.0:
     resolution: {integrity: sha512-z4qtrRuaAFJS4PUd0g+xy7aN4y+RvEt/QTJpR184lhJguBA1S/LsVlvE/CM95RsYMOFJG3NGGDjqFCzKU19S/A==}
@@ -2297,6 +2304,8 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-git-hooks@2.13.0: {}
 
   simple-git@2.48.0:
     dependencies:
