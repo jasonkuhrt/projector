@@ -247,8 +247,35 @@ export const create = async <scriptRunners extends ScriptRunners = {}>(
   //
   //
 
-  // links
+  // Replace workspace:* dependencies before any pnpm operations
+  if (packageJson) {
+    const links = parameters.package ? parameters.package.links ?? [] : []
+    const workspaceReplacements: Record<string, string> = {}
 
+    for (const link of links) {
+      const linkDirName = Path.basename(link.dir)
+      if (packageJson.dependencies?.[linkDirName] === `workspace:*`) {
+        const pathToLinkDirFromProject = Path.join(
+          `..`,
+          Path.relative(project.layout.cwd, link.dir),
+        )
+        workspaceReplacements[linkDirName] = `${link.protocol}:${pathToLinkDirFromProject}`
+      }
+    }
+
+    if (Object.keys(workspaceReplacements).length > 0) {
+      debug(`replacing workspace:* dependencies`, workspaceReplacements)
+      await Manifest.resource.update((manifest) => {
+        if (manifest.dependencies) {
+          for (const [depName, replacement] of Object.entries(workspaceReplacements)) {
+            manifest.dependencies[depName] = replacement
+          }
+        }
+      }, project.layout.cwd)
+    }
+  }
+
+  // links (now pnpm operations should work since workspace:* is resolved)
   const links = parameters.package ? parameters.package.links ?? [] : []
   for (const link of links) {
     const pathToLinkDirFromProject = Path.join(
