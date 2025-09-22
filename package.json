@@ -2,12 +2,16 @@
   "name": "@wollybeard/projector",
   "description": "Projector is a JavaScript library for programmatically scaffolding and controlling projects.",
   "devDependencies": {
+    "@effect/platform": "^0.90.10",
+    "@effect/platform-node": "^0.96.1",
+    "@effect/vitest": "^0.25.1",
     "@tsconfig/node-lts": "^22.0.1",
     "@tsconfig/node22": "^22.0.2",
     "@tsconfig/recommended": "^1.0.8",
     "@tsconfig/strictest": "^2.0.5",
     "dprint": "^0.50.0",
     "dripip": "^0.10.0",
+    "effect": "^3.17.14",
     "simple-git-hooks": "^2.13.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
@@ -60,8 +64,13 @@
     "pre-commit": "pnpm check"
   },
   "dependencies": {
+    "@effect/platform-node-shared": "^0.49.2",
     "@types/node": "^22.15.30",
-    "@wollybeard/kit": "^0.34.0",
-    "zx": "^8.5.5"
+    "@wollybeard/kit": "^0.54.0"
+  },
+  "peerDependencies": {
+    "@effect/platform": "^0.90.10",
+    "@effect/platform-node": "^0.96.1",
+    "effect": "^3.17.14"
   }
 }
