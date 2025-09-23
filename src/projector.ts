@@ -1,6 +1,5 @@
-import { Command } from '@effect/platform'
+import { Command, FileSystem } from '@effect/platform'
 import { NodeContext } from '@effect/platform-node'
-import { FileSystem } from '@effect/platform/FileSystem'
 import { Dir, Fs, FsLoc, Lang, type PackageManager } from '@wollybeard/kit'
 import { Effect, Option, pipe } from 'effect'
 
@@ -112,9 +111,9 @@ interface Config {
 
 const resolveConfigInput = (
   configInput: ConfigInput<any>,
-): Effect.Effect<Config, InvalidDirectoryError | FileSystemError, FileSystem> =>
+): Effect.Effect<Config, InvalidDirectoryError | FileSystemError, FileSystem.FileSystem> =>
   Effect.gen(function*() {
-    const fs = yield* FileSystem
+    const fs = yield* FileSystem.FileSystem
 
     // Decode scaffold input
     const scaffold: Scaffold = yield* (() => {
@@ -215,7 +214,7 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
 ): Effect.Effect<
   Projector<$ScriptRunners>,
   InvalidDirectoryError | PackageJsonMissingError | FileSystemError,
-  FileSystem
+  FileSystem.FileSystem
 > =>
   Effect.gen(function*() {
     const config = yield* resolveConfigInput(parameters)
