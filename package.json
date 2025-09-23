@@ -5,17 +5,17 @@
     "@effect/platform": "^0.90.10",
     "@effect/platform-node": "^0.96.1",
     "@effect/vitest": "^0.25.1",
-    "@tsconfig/node-lts": "^22.0.1",
+    "@tsconfig/node-lts": "^22.0.2",
     "@tsconfig/node22": "^22.0.2",
-    "@tsconfig/recommended": "^1.0.8",
-    "@tsconfig/strictest": "^2.0.5",
-    "dprint": "^0.50.0",
+    "@tsconfig/recommended": "^1.0.10",
+    "@tsconfig/strictest": "^2.0.6",
+    "dprint": "^0.50.2",
     "dripip": "^0.10.0",
     "effect": "^3.17.14",
-    "simple-git-hooks": "^2.13.0",
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.2"
+    "simple-git-hooks": "^2.13.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
@@ -64,9 +64,8 @@
     "pre-commit": "pnpm check"
   },
   "dependencies": {
-    "@effect/platform-node-shared": "^0.49.2",
-    "@types/node": "^22.15.30",
-    "@wollybeard/kit": "^0.54.0"
+    "@types/node": "^24.5.2",
+    "@wollybeard/kit": "^0.59.1"
   },
   "peerDependencies": {
     "@effect/platform": "^0.90.10",

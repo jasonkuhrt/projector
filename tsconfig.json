@@ -8,6 +8,7 @@
     // Package
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "target": "es2022",
 
     // Output
     "verbatimModuleSyntax": true,

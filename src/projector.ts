@@ -1,31 +1,50 @@
 import { Command } from '@effect/platform'
 import { NodeContext } from '@effect/platform-node'
 import { FileSystem } from '@effect/platform/FileSystem'
-import { Fs, FsLoc, Lang, type PackageManager } from '@wollybeard/kit'
-import * as FsLocOps from '@wollybeard/kit/fs-loc'
+import { Dir, Fs, FsLoc, Lang, type PackageManager } from '@wollybeard/kit'
 import { Effect, Option, pipe } from 'effect'
-import { Layout } from './lib/layout/index.js'
 
-// Aliases for FsLoc decode functions
-const rf = FsLoc.RelFile.decodeSync // relative file
-const rd = FsLoc.RelDir.decodeSync // relative directory
-const af = FsLoc.AbsFile.decodeSync // absolute file
-const ad = FsLoc.AbsDir.decodeSync // absolute directory
+// Error classes
+/** Error thrown when an invalid directory path is provided */
+export class InvalidDirectoryError extends Error {
+  constructor(path: string) {
+    super(`Invalid directory path: ${path}`)
+    this.name = 'InvalidDirectoryError'
+  }
+}
 
+/** Error thrown when package.json is required but missing */
+export class PackageJsonMissingError extends Error {
+  constructor(directory: string) {
+    super(`package.json missing in ${directory}`)
+    this.name = 'PackageJsonMissingError'
+  }
+}
+
+/** Error thrown when FileSystem operations fail */
+export class FileSystemError extends Error {
+  constructor(operation: string, cause: unknown) {
+    super(`FileSystem ${operation} failed: ${cause}`)
+    this.name = 'FileSystemError'
+  }
+}
+
+/** Function that returns an Effect for script execution */
 type ScriptRunner = (...args: any[]) => Effect.Effect<any>
 
+/** Collection of named script runners */
 type ScriptRunners = Record<string, ScriptRunner>
 
 /** Project instance with file operations and script runners */
 export interface Projector<
   $ScriptRunners extends ScriptRunners = {},
 > {
-  /** File system layout operations */
-  layout: Layout.Layout
+  /** Directory operations using chainable API */
+  dir: Dir.Dir & Dir.DirChain
   /** Execute shell commands in project directory */
-  shell: (command: string) => Effect.Effect<string, Error>
+  shell: (command: string) => Effect.Effect<string, FileSystemError>
   /** Execute package manager commands */
-  packageManager: (command: string) => Effect.Effect<string, Error>
+  packageManager: (command: string) => Effect.Effect<string, FileSystemError>
   /** Parsed project files */
   files: {
     /** Parsed package.json if present */
@@ -33,12 +52,12 @@ export interface Projector<
   }
   /** Custom script runners */
   run: $ScriptRunners
-  /** Project root directory */
-  dir: FsLoc.AbsDir.AbsDir
 }
 
+/** Input options for project scaffolding */
 type ScaffoldInput = TemplateScaffoldInput | InitScaffold
 
+/** Template-based scaffold configuration */
 interface TemplateScaffoldInput {
   type: `template`
   dir: string | FsLoc.AbsDir.AbsDir
@@ -46,10 +65,12 @@ interface TemplateScaffoldInput {
   // ignore?: Str.PatternsInput
 }
 
+/** Minimal init scaffold with just package.json */
 interface InitScaffold {
   type: `init`
 }
 
+/** Resolved template scaffold with absolute directory */
 interface TemplateScaffold {
   type: `template`
   dir: FsLoc.AbsDir.AbsDir
@@ -57,18 +78,26 @@ interface TemplateScaffold {
   // ignore: Str.PatternsInput
 }
 
+/** Resolved scaffold configuration */
 type Scaffold = TemplateScaffold | InitScaffold
 
+/** Configuration options for creating a project */
 interface ConfigInput<$ScriptRunners extends ScriptRunners = ScriptRunners> {
+  /** Target directory for the project (auto-creates temp dir if omitted) */
   directory?: string | FsLoc.AbsDir.AbsDir | undefined
+  /** Package manager configuration (false to disable) */
   package?: false | {
+    /** Whether to run package install after setup */
     install?: boolean | undefined
+    /** Local packages to link */
     links?: {
       dir: string | FsLoc.AbsDir.AbsDir
       protocol: PackageManager.LinkProtocol
     }[] | undefined
   }
+  /** Factory function for custom script runners */
   scripts?: ((project: Projector) => $ScriptRunners) | undefined
+  /** Scaffold type - 'init' for minimal or directory/config for template */
   scaffold?: string | FsLoc.AbsDir.AbsDir | ScaffoldInput | undefined
 }
 
@@ -81,7 +110,9 @@ interface Config {
   }
 }
 
-const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config, Error, FileSystem> =>
+const resolveConfigInput = (
+  configInput: ConfigInput<any>,
+): Effect.Effect<Config, InvalidDirectoryError | FileSystemError, FileSystem> =>
   Effect.gen(function*() {
     const fs = yield* FileSystem
 
@@ -95,7 +126,7 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config
         // String always means template directory
         return FsLoc.AbsDir.decode(configInput.scaffold).pipe(
           Effect.map(dir => ({ type: `template`, dir } satisfies TemplateScaffold)),
-          Effect.mapError(() => new Error(`Invalid scaffold directory: ${configInput.scaffold}`)),
+          Effect.mapError(() => new InvalidDirectoryError(String(configInput.scaffold))),
         )
       }
 
@@ -114,7 +145,7 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config
         const dirInput = configInput.scaffold.dir
         return typeof dirInput === 'string'
           ? FsLoc.AbsDir.decode(dirInput).pipe(
-            Effect.mapError(() => new Error(`Invalid template directory: ${dirInput}`)),
+            Effect.mapError(() => new InvalidDirectoryError(dirInput)),
             Effect.map(dir => ({ type: `template` as const, dir })),
           )
           : Effect.succeed({ type: `template` as const, dir: dirInput as FsLoc.AbsDir.AbsDir })
@@ -130,7 +161,7 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config
       if (configInput.directory) {
         if (typeof configInput.directory === 'string') {
           return FsLoc.AbsDir.decode(configInput.directory).pipe(
-            Effect.mapError(() => new Error(`Invalid directory: ${configInput.directory}`)),
+            Effect.mapError(() => new InvalidDirectoryError(String(configInput.directory))),
           )
         } else {
           return Effect.succeed(configInput.directory)
@@ -140,10 +171,10 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config
         return Effect.gen(function*() {
           const tempDirPath = `/tmp/projector-${Date.now()}/`
           const dir = yield* FsLoc.AbsDir.decode(tempDirPath).pipe(
-            Effect.mapError(() => new Error(`Invalid temp directory: ${tempDirPath}`)),
+            Effect.mapError(() => new InvalidDirectoryError(tempDirPath)),
           )
           yield* fs.makeDirectory(FsLoc.encodeSync(dir), { recursive: true }).pipe(
-            Effect.mapError(error => new Error(`Failed to create temp directory: ${error}`)),
+            Effect.mapError(error => new FileSystemError('makeDirectory', error)),
           )
           return dir
         })
@@ -160,17 +191,19 @@ const resolveConfigInput = (configInput: ConfigInput<any>): Effect.Effect<Config
     }
   })
 
-const runShellCommand = (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, Error, never> =>
-  pipe(
-    Command.make('sh', '-c', command),
-    Command.workingDirectory(FsLoc.encodeSync(cwd)),
-    Command.string,
-    Effect.mapError(error => new Error(String(error))),
-    Effect.provide(NodeContext.layer),
-  )
+const runShellCommand =
+  (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
+    pipe(
+      Command.make('sh', '-c', command),
+      Command.workingDirectory(FsLoc.encodeSync(cwd)),
+      Command.string,
+      Effect.mapError(error => new FileSystemError('command execution', error)),
+      Effect.provide(NodeContext.layer),
+    )
 
-const runPackageManagerCommand = (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, Error, never> =>
-  runShellCommand(cwd)(`pnpm ${command}`)
+const runPackageManagerCommand =
+  (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
+    runShellCommand(cwd)(`pnpm ${command}`)
 
 /**
  * Create a new project with optional scaffolding and package management
@@ -179,13 +212,16 @@ const runPackageManagerCommand = (cwd: FsLoc.AbsDir.AbsDir) => (command: string)
  */
 export const create = <$ScriptRunners extends ScriptRunners = {}>(
   parameters: ConfigInput<$ScriptRunners>,
-): Effect.Effect<Projector<$ScriptRunners>, Error, FileSystem> =>
+): Effect.Effect<
+  Projector<$ScriptRunners>,
+  InvalidDirectoryError | PackageJsonMissingError | FileSystemError,
+  FileSystem
+> =>
   Effect.gen(function*() {
     const config = yield* resolveConfigInput(parameters)
-    const fs = yield* FileSystem
 
-    // Files setup
-    const layout = Layout.create({ directory: config.directory, fs })
+    // Create Dir instance with chaining
+    const projectDir = Dir.withChaining(Dir.create(config.directory))
 
     // Scaffold
     switch (config.scaffold.type) {
@@ -195,14 +231,12 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
         break
       }
       case `init`: {
-        const packageJsonPath = FsLocOps.join(config.directory, rf('package.json'))
-        yield* layout.write({
-          loc: packageJsonPath,
-          content: {
+        yield* projectDir
+          .file('package.json', {
             name: `project`,
             packageManager: `pnpm@10.10.0`,
-          },
-        })
+          })
+          .commit()
         break
       }
       default: {
@@ -210,7 +244,7 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
       }
     }
 
-    const packageJsonPath = FsLocOps.join(config.directory, rf('package.json'))
+    const packageJsonPath = FsLoc.join(config.directory, 'package.json')
     const packageJsonExists = yield* Fs.exists(packageJsonPath)
 
     let packageJsonResult: any = null
@@ -224,7 +258,7 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
     }
 
     if (config.package.enabled && !packageJsonResult) {
-      return yield* Effect.fail(new Error(`packageJson missing in ${FsLoc.encodeSync(config.directory)}`))
+      return yield* Effect.fail(new PackageJsonMissingError(FsLoc.encodeSync(config.directory)))
     }
 
     const files = {
@@ -237,10 +271,9 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
     // Create project instance
     const project: Projector<$ScriptRunners> = {
       shell,
-      layout,
+      dir: projectDir,
       files,
       packageManager,
-      dir: config.directory,
       run: undefined as any, // Will be set below
     }
 
@@ -255,12 +288,14 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
     for (const link of links) {
       const linkDir = typeof link.dir === 'string'
         ? yield* FsLoc.AbsDir.decode(link.dir).pipe(
-          Effect.mapError(() => new Error(`Invalid link directory: ${link.dir}`)),
+          Effect.mapError(() =>
+            new InvalidDirectoryError(typeof link.dir === 'string' ? link.dir : FsLoc.encodeSync(link.dir))
+          ),
         )
         : link.dir
 
       // Calculate relative path from project to link
-      const projectDirString = FsLoc.encodeSync(project.dir)
+      const projectDirString = FsLoc.encodeSync(projectDir.base)
       const linkDirString = FsLoc.encodeSync(linkDir)
       const relativePath = linkDirString.replace(projectDirString, '').replace(/^\//, '')
       const pathToLinkDirFromProject = `../${relativePath}`
@@ -289,14 +324,14 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
 
     // Apply workspace:* replacements if any
     if (Object.keys(workspaceReplacements).length > 0) {
-      const manifestPath = FsLocOps.join(project.dir, rf('package.json'))
+      const manifestPath = FsLoc.join(projectDir.base, 'package.json')
       const content = yield* Fs.readString(manifestPath)
       const manifest = JSON.parse(content)
       if (manifest && manifest.dependencies) {
         for (const [depName, replacement] of Object.entries(workspaceReplacements)) {
           manifest.dependencies[depName] = replacement
         }
-        yield* Fs.writeString(manifestPath, JSON.stringify(manifest, null, 2))
+        yield* Fs.write(manifestPath, JSON.stringify(manifest, null, 2))
       }
     }
 
@@ -307,5 +342,3 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
 
     return project
   }).pipe(Effect.provide(NodeContext.layer))
-
-export * from './lib/layout/layout.js'
