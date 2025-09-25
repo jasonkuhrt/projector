@@ -1,7 +1,7 @@
 import { Command, FileSystem } from '@effect/platform'
 import { NodeContext } from '@effect/platform-node'
 import { Dir, Fs, FsLoc, Lang, type PackageManager } from '@wollybeard/kit'
-import { Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe, Schema } from 'effect'
 
 // Error classes
 /** Error thrown when an invalid directory path is provided */
@@ -59,7 +59,7 @@ type ScaffoldInput = TemplateScaffoldInput | InitScaffold
 /** Template-based scaffold configuration */
 interface TemplateScaffoldInput {
   type: `template`
-  dir: string | FsLoc.AbsDir.AbsDir
+  dir: string | FsLoc.AbsDir
   // TODO: Add ignore patterns once Fs.copy supports filtering
   // ignore?: Str.PatternsInput
 }
@@ -72,7 +72,7 @@ interface InitScaffold {
 /** Resolved template scaffold with absolute directory */
 interface TemplateScaffold {
   type: `template`
-  dir: FsLoc.AbsDir.AbsDir
+  dir: FsLoc.AbsDir
   // TODO: Add ignore patterns once Fs.copy supports filtering
   // ignore: Str.PatternsInput
 }
@@ -83,25 +83,25 @@ type Scaffold = TemplateScaffold | InitScaffold
 /** Configuration options for creating a project */
 interface ConfigInput<$ScriptRunners extends ScriptRunners = ScriptRunners> {
   /** Target directory for the project (auto-creates temp dir if omitted) */
-  directory?: string | FsLoc.AbsDir.AbsDir | undefined
+  directory?: string | FsLoc.AbsDir | undefined
   /** Package manager configuration (false to disable) */
   package?: false | {
     /** Whether to run package install after setup */
     install?: boolean | undefined
     /** Local packages to link */
     links?: {
-      dir: string | FsLoc.AbsDir.AbsDir
+      dir: string | FsLoc.AbsDir
       protocol: PackageManager.LinkProtocol
     }[] | undefined
   }
   /** Factory function for custom script runners */
   scripts?: ((project: Projector) => $ScriptRunners) | undefined
   /** Scaffold type - 'init' for minimal or directory/config for template */
-  scaffold?: string | FsLoc.AbsDir.AbsDir | ScaffoldInput | undefined
+  scaffold?: string | FsLoc.AbsDir | ScaffoldInput | undefined
 }
 
 interface Config {
-  directory: FsLoc.AbsDir.AbsDir
+  directory: FsLoc.AbsDir
   scaffold: Scaffold
   package: {
     enabled: boolean
@@ -123,7 +123,7 @@ const resolveConfigInput = (
 
       if (typeof configInput.scaffold === `string`) {
         // String always means template directory
-        return FsLoc.AbsDir.decode(configInput.scaffold).pipe(
+        return Schema.decode(FsLoc.AbsDir.String)(configInput.scaffold).pipe(
           Effect.map(dir => ({ type: `template`, dir } satisfies TemplateScaffold)),
           Effect.mapError(() => new InvalidDirectoryError(String(configInput.scaffold))),
         )
@@ -134,7 +134,7 @@ const resolveConfigInput = (
         return Effect.succeed(
           {
             type: `template`,
-            dir: configInput.scaffold as FsLoc.AbsDir.AbsDir,
+            dir: configInput.scaffold as FsLoc.AbsDir,
           } satisfies TemplateScaffold,
         )
       }
@@ -143,11 +143,11 @@ const resolveConfigInput = (
       if (configInput.scaffold.type === `template`) {
         const dirInput = configInput.scaffold.dir
         return typeof dirInput === 'string'
-          ? FsLoc.AbsDir.decode(dirInput).pipe(
+          ? Schema.decode(FsLoc.AbsDir.String)(dirInput).pipe(
             Effect.mapError(() => new InvalidDirectoryError(dirInput)),
             Effect.map(dir => ({ type: `template` as const, dir })),
           )
-          : Effect.succeed({ type: `template` as const, dir: dirInput as FsLoc.AbsDir.AbsDir })
+          : Effect.succeed({ type: `template` as const, dir: dirInput as FsLoc.AbsDir })
       }
 
       return Effect.succeed({ type: `init` } satisfies InitScaffold)
@@ -159,7 +159,7 @@ const resolveConfigInput = (
     const directory = yield* (() => {
       if (configInput.directory) {
         if (typeof configInput.directory === 'string') {
-          return FsLoc.AbsDir.decode(configInput.directory).pipe(
+          return Schema.decode(FsLoc.AbsDir.String)(configInput.directory).pipe(
             Effect.mapError(() => new InvalidDirectoryError(String(configInput.directory))),
           )
         } else {
@@ -169,7 +169,7 @@ const resolveConfigInput = (
         // Create a temp directory
         return Effect.gen(function*() {
           const tempDirPath = `/tmp/projector-${Date.now()}/`
-          const dir = yield* FsLoc.AbsDir.decode(tempDirPath).pipe(
+          const dir = yield* Schema.decode(FsLoc.AbsDir.String)(tempDirPath).pipe(
             Effect.mapError(() => new InvalidDirectoryError(tempDirPath)),
           )
           yield* fs.makeDirectory(FsLoc.encodeSync(dir), { recursive: true }).pipe(
@@ -190,18 +190,17 @@ const resolveConfigInput = (
     }
   })
 
-const runShellCommand =
-  (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
-    pipe(
-      Command.make('sh', '-c', command),
-      Command.workingDirectory(FsLoc.encodeSync(cwd)),
-      Command.string,
-      Effect.mapError(error => new FileSystemError('command execution', error)),
-      Effect.provide(NodeContext.layer),
-    )
+const runShellCommand = (cwd: FsLoc.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
+  pipe(
+    Command.make('sh', '-c', command),
+    Command.workingDirectory(FsLoc.encodeSync(cwd)),
+    Command.string,
+    Effect.mapError(error => new FileSystemError('command execution', error)),
+    Effect.provide(NodeContext.layer),
+  )
 
 const runPackageManagerCommand =
-  (cwd: FsLoc.AbsDir.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
+  (cwd: FsLoc.AbsDir) => (command: string): Effect.Effect<string, FileSystemError, never> =>
     runShellCommand(cwd)(`pnpm ${command}`)
 
 /**
@@ -286,7 +285,7 @@ export const create = <$ScriptRunners extends ScriptRunners = {}>(
 
     for (const link of links) {
       const linkDir = typeof link.dir === 'string'
-        ? yield* FsLoc.AbsDir.decode(link.dir).pipe(
+        ? yield* Schema.decode(FsLoc.AbsDir.String)(link.dir).pipe(
           Effect.mapError(() =>
             new InvalidDirectoryError(typeof link.dir === 'string' ? link.dir : FsLoc.encodeSync(link.dir))
           ),

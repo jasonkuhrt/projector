@@ -10,7 +10,7 @@ import { TestDir, TestLayer } from './test-layer.js'
 const join = FsLoc.join
 
 // Test helpers
-const expectFile = function*(path: FsLoc.AbsFile.AbsFile, format?: 'json' | 'text') {
+const expectFile = function*(path: FsLoc.AbsFile, format?: 'json' | 'text') {
   const exists = yield* Fs.exists(path)
   expect(exists).toBe(true)
   if (format) {
@@ -81,7 +81,7 @@ it.scoped('create() - can be given custom scripts', () =>
 
 it.effect('#shell() - runs commands in project directory', () =>
   Effect.gen(function*() {
-    const tempDir = Dir.createTempUnsafe()
+    const tempDir = yield* Dir.createTempUnsafe()
     const testDir = tempDir.base
     try {
       const project = yield* create({ directory: testDir, scaffold: { type: 'init' } })

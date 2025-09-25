@@ -5,7 +5,7 @@ import { Context, Layer } from 'effect'
 /**
  * Service for providing a test directory that is automatically cleaned up
  */
-export class TestDir extends Context.Tag('TestDir')<TestDir, FsLoc.AbsDir.AbsDir>() {}
+export class TestDir extends Context.Tag('TestDir')<TestDir, FsLoc.AbsDir>() {}
 
 /**
  * Layer that provides a scoped temporary directory for tests.
